@@ -141,8 +141,8 @@
 <div class="window">
   <div class="titlebar" data-tauri-drag-region>
     <div class="brand" data-tauri-drag-region>
-      <Logo size={22} />
-      <span data-tauri-drag-region>check!</span>
+      <Logo size={18} />
+      <span data-tauri-drag-region>Check</span>
     </div>
     <div style="display: flex">
       <button class="wc" aria-label="Réduire" onclick={() => win.minimize()}><Icon name="minus" size={14} stroke={1.8} /></button>
@@ -154,9 +154,9 @@
   <div class="body">
     <nav class="sidebar" aria-label="Checklists">
       <button class="btn primary" style="width: 100%" onclick={() => (modal = { mode: 'create' })} aria-keyshortcuts="Control+N">
-        <Icon name="plus" size={16} stroke={2.6} />Nouvelle checklist
+        <Icon name="plus" size={15} stroke={2.2} />Nouvelle checklist
       </button>
-      <p class="label" style="padding: 18px 10px 6px">Mes checklists</p>
+      <p class="label" style="padding: 16px 10px 6px">Mes checklists</p>
       <div class="lists" bind:this={navBox}>
         {#each store.data.lists as l, idx (l.id)}
           <button

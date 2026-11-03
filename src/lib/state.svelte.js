@@ -3,23 +3,29 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 export const COLORS = [
-  { c: '#3D7BFF', n: 'Bleu' },
-  { c: '#FF7A1A', n: 'Orange' },
-  { c: '#2FD96B', n: 'Vert' },
-  { c: '#FF3D8B', n: 'Rose' },
-  { c: '#9B5CFF', n: 'Violet' },
-  { c: '#22C3FF', n: 'Cyan' },
-  { c: '#FFD60A', n: 'Jaune' },
-  { c: '#FF5E5E', n: 'Corail' }
+  { c: '#3B82F6', n: 'Bleu' },
+  { c: '#8B5CF6', n: 'Violet' },
+  { c: '#EC4899', n: 'Rose' },
+  { c: '#EF4444', n: 'Rouge' },
+  { c: '#F97316', n: 'Orange' },
+  { c: '#D97706', n: 'Ambre' },
+  { c: '#16A34A', n: 'Vert' },
+  { c: '#0891B2', n: 'Turquoise' }
 ];
+
+/** Anciennes couleurs (design « dopamine ») → nouvelles. */
+const LEGACY_COLORS = {
+  '#3D7BFF': '#3B82F6', '#FF7A1A': '#F97316', '#2FD96B': '#16A34A', '#FF3D8B': '#EC4899',
+  '#9B5CFF': '#8B5CF6', '#22C3FF': '#0891B2', '#FFD60A': '#D97706', '#FF5E5E': '#EF4444'
+};
 
 export const BGS = [
   { id: 'solid', name: 'Uni' },
-  { id: 'dots', name: 'Pois' },
+  { id: 'dots', name: 'Points' },
   { id: 'grid', name: 'Quadrillage' },
   { id: 'lines', name: 'Cahier' },
-  { id: 'aurora', name: 'Bonbon' },
-  { id: 'night', name: 'Néon' }
+  { id: 'aurora', name: 'Halo' },
+  { id: 'night', name: 'Nuit' }
 ];
 
 const label = getCurrentWebviewWindow().label;
@@ -47,6 +53,11 @@ export function runUndo() {
 
 export async function init() {
   store.data = await invoke('get_data');
+  const legacy = store.data.lists.filter((l) => LEGACY_COLORS[l.color?.toUpperCase()]);
+  if (legacy.length && label === 'main') {
+    legacy.forEach((l) => (l.color = LEGACY_COLORS[l.color.toUpperCase()]));
+    commitAll();
+  }
   await listen('data-changed', (e) => {
     if (e.payload.origin !== label) store.data = e.payload.data;
   });
@@ -119,7 +130,7 @@ export function newList(f) {
     schedule: { kind: f.kind, day: f.day, time: f.time, dom: Number(f.dom) || 1, hours: Number(f.hours) || 24 },
     items: [],
     pinned: !!f.pin,
-    widget: { x: null, y: null, width: 300, onTop: false, locked: false, opacity: 1, collapsed: false },
+    widget: { x: null, y: null, width: 300, height: null, onTop: false, locked: false, opacity: 1, collapsed: false },
     lastReset: Date.now(),
     completedThisPeriod: false,
     completions: 0,

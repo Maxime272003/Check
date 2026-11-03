@@ -12,14 +12,26 @@ use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt as _};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 
 use data::AppState;
 use model::{AppData, Checklist, HistEntry, Settings};
 
-pub const GLOBAL_SHORTCUT: &str = "ctrl+alt+c";
+/// Afficher / masquer la fenêtre de Check.
+fn shortcut_main() -> Shortcut {
+    Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyC)
+}
+/// Afficher / ramener devant / masquer les post-it.
+fn shortcut_widgets() -> Shortcut {
+    Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyB)
+}
+
+fn toggle_widgets(app: &AppHandle) {
+    let data = app.state::<AppState>().snapshot();
+    widgets::toggle_all(app, &data);
+}
 
 struct TrayPause(CheckMenuItem<Wry>);
 
@@ -175,6 +187,11 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn toggle_widgets_cmd(app: AppHandle) {
+    toggle_widgets(&app);
+}
+
+#[tauri::command]
 fn app_version(app: AppHandle) -> String {
     app.package_info().version.to_string()
 }
@@ -277,11 +294,12 @@ fn start_ticker(app: AppHandle) {
 fn build_tray(app: &AppHandle, paused: bool) -> tauri::Result<()> {
     let open_i = MenuItem::with_id(app, "open", "Ouvrir Check", true, Some("Ctrl+Alt+C"))?;
     let new_i = MenuItem::with_id(app, "new", "Nouvelle checklist", true, None::<&str>)?;
+    let widgets_i = MenuItem::with_id(app, "widgets", "Afficher / masquer les post-it", true, Some("Ctrl+Alt+B"))?;
     let pause_i = CheckMenuItem::with_id(app, "pause", "Suspendre les remises à zéro", true, paused, None::<&str>)?;
     let settings_i = MenuItem::with_id(app, "settings", "Paramètres", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open_i, &new_i, &pause_i, &settings_i, &sep, &quit_i])?;
+    let menu = Menu::with_items(app, &[&open_i, &new_i, &widgets_i, &pause_i, &settings_i, &sep, &quit_i])?;
     app.manage(TrayPause(pause_i));
 
     let mut builder = TrayIconBuilder::with_id("main")
@@ -294,6 +312,7 @@ fn build_tray(app: &AppHandle, paused: bool) -> tauri::Result<()> {
                 show_main(app);
                 let _ = app.emit_to("main", "ui-action", "new");
             }
+            "widgets" => toggle_widgets(app),
             "settings" => {
                 show_main(app);
                 let _ = app.emit_to("main", "ui-action", "settings");
@@ -339,9 +358,14 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
+                .with_handler(|app, shortcut, event| {
+                    if event.state() != ShortcutState::Pressed {
+                        return;
+                    }
+                    if shortcut.id() == shortcut_main().id() {
                         toggle_main(app);
+                    } else if shortcut.id() == shortcut_widgets().id() {
+                        toggle_widgets(app);
                     }
                 })
                 .build(),
@@ -355,8 +379,10 @@ pub fn run() {
             if first_run {
                 let _ = app.autolaunch().enable();
             }
-            if let Err(e) = app.global_shortcut().register(GLOBAL_SHORTCUT) {
-                eprintln!("raccourci global {GLOBAL_SHORTCUT} indisponible : {e}");
+            for sc in [shortcut_main(), shortcut_widgets()] {
+                if let Err(e) = app.global_shortcut().register(sc) {
+                    eprintln!("raccourci global indisponible : {e}");
+                }
             }
             let handle = app.handle().clone();
             build_tray(&handle, data.settings.paused)?;
@@ -416,6 +442,7 @@ pub fn run() {
             set_autostart,
             app_version,
             widget_count,
+            toggle_widgets_cmd,
             open_url,
             quit_app,
             updater::check_update,

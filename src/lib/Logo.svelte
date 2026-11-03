@@ -3,8 +3,6 @@
 </script>
 
 <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-  <rect x="8" y="8" width="52" height="52" rx="16" fill="#1A1033" />
-  <rect x="4" y="4" width="52" height="52" rx="16" fill="#FF3D8B" stroke="#1A1033" stroke-width="3" />
-  <path d="M17 31l8 8 17-19" fill="none" stroke="#1A1033" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M17 31l8 8 17-19" fill="none" stroke="#FFE14D" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="#EC4899" />
+  <path d="M19 33l9 9 18-20" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
 </svg>

@@ -37,6 +37,8 @@ pub struct WidgetState {
     pub x: Option<f64>,
     pub y: Option<f64>,
     pub width: f64,
+    /// Hauteur choisie en redimensionnant ; `None` = s'adapte au contenu.
+    pub height: Option<f64>,
     pub on_top: bool,
     pub locked: bool,
     pub opacity: f64,
@@ -45,7 +47,7 @@ pub struct WidgetState {
 
 impl Default for WidgetState {
     fn default() -> Self {
-        Self { x: None, y: None, width: 300.0, on_top: false, locked: false, opacity: 1.0, collapsed: false }
+        Self { x: None, y: None, width: 300.0, height: None, on_top: false, locked: false, opacity: 1.0, collapsed: false }
     }
 }
 
@@ -124,7 +126,7 @@ pub fn seed(now: i64) -> AppData {
         lists: vec![Checklist {
             id: "bienvenue".into(),
             name: "Bienvenue".into(),
-            color: "#FF3D8B".into(),
+            color: "#3B82F6".into(),
             bg: "aurora".into(),
             schedule: Schedule { kind: "weekly".into(), ..Default::default() },
             items,

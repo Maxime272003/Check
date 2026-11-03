@@ -1,12 +1,12 @@
 # check!
 
-Checklists de bureau qui se décochent toutes seules. Tauri 2 + Svelte 5, ~5 Mo, design « dopamine ».
+Checklists de bureau qui se décochent toutes seules. Tauri 2 + Svelte 5, installateur ~2,5 Mo.
 
 ## Fonctionnalités
 
-- **Checklists** : nom, couleur (8), style de fond (Uni, Pois, Quadrillage, Cahier, Bonbon, Néon).
+- **Checklists** : nom, couleur (8), style de fond (Uni, Points, Quadrillage, Cahier, Halo, Nuit).
 - **Remise à zéro automatique** : chaque jour / semaine (jour + heure) / mois (jour + heure) / toutes les N heures. Rattrapée au lancement si l’ordinateur était éteint.
-- **Post-it** : « Poser sur le bureau » ouvre la checklist dans une petite fenêtre sans bordure, déplaçable, repliable, cochable. Options : premier plan, verrouiller, opacité, largeur.
+- **Post-it** (comme dans Pense) : « Poser sur le bureau » ouvre la checklist dans une petite fenêtre qui apparaît près de la souris. On la déplace par le haut, on la redimensionne par le coin bas-droit, l’épingle la garde au premier plan. `Ctrl+Alt+B` affiche, ramène devant ou masque tous les post-it.
 - **Arrière-plan** : icône dans la zone de notification, lancement au démarrage de Windows (option « démarrer en arrière-plan » = sans fenêtre), fermer = réduire.
 - **Mises à jour** : Paramètres › Rechercher une mise à jour lit `latest.json` de la dernière release GitHub, vérifie la signature, installe et relance l’app.
 

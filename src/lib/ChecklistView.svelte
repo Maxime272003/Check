@@ -59,10 +59,10 @@
 
     {#if total > 0 && done === total}
       <div class="banner" role="status">
-        <Icon name="circleCheck" size={28} />
+        <Icon name="circleCheck" size={22} />
         <div style="display: flex; flex-direction: column; gap: 2px">
-          <strong class="disp" style="font-size: 17px">Tout est coché, bravo !{st.current > 1 ? ` ${st.current} d’affilée.` : ''}</strong>
-          <span style="font-size: 13px; font-weight: 600">
+          <strong style="font-size: 14px; font-weight: 600">Tout est coché, bravo !{st.current > 1 ? ` ${st.current} d’affilée.` : ''}</strong>
+          <span style="font-size: 13px; color: var(--muted)">
             {list.schedule.kind === 'none' ? 'Décochez tout quand vous voulez recommencer.' : `Remise à zéro automatique ${resetIn}.`}
           </span>
         </div>
@@ -96,7 +96,7 @@
 
     <div class="list-foot">
       <div class="swatches" role="group" aria-label="Style du fond">
-        <span class="label" style="margin-right: 6px">Fond</span>
+        <span class="label" style="margin-right: 4px">Fond</span>
         {#each BGS as b (b.id)}
           <button class="swbtn" class:on={list.bg === b.id} aria-label="Fond {b.name}" aria-pressed={list.bg === b.id} title={b.name} onclick={() => setBg(b.id)}>
             <span class="sw mini bg bg-{b.id}" style="--c: {list.color}"></span>

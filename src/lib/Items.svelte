@@ -87,7 +87,7 @@
           onpointerdown={(e) => onPointerDown(e, it, idx)}
           onkeydown={(e) => onRowKey(e, idx)}
         >
-          <span class="cb" class:on={it.done}><Icon name="check" size={compact ? 12 : 14} stroke={3.6} /></span>
+          <span class="cb" class:on={it.done}><Icon name="check" size={compact ? 11 : 13} stroke={3.2} /></span>
           <span class="txt" class:on={it.done}>{it.text}</span>
         </button>
         {#if !compact}
@@ -102,7 +102,7 @@
   {/if}
 
   <form class={compact ? 'w-add' : 'addrow'} onsubmit={add}>
-    <Icon name="plus" size={compact ? 14 : 18} stroke={2.4} />
+    <Icon name="plus" size={compact ? 13 : 16} stroke={2} />
     <label class="sr" for="add-{list.id}">Nouvel élément</label>
     <input id="add-{list.id}" placeholder={compact ? 'Ajouter…' : 'Ajouter un élément puis Entrée  (N)'} bind:value={draft} autocomplete="off" />
   </form>

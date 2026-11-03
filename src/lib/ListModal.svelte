@@ -10,7 +10,7 @@
   const init = untrack(() =>
     list
       ? { name: list.name, color: list.color, bg: list.bg, ...$state.snapshot(list.schedule), pin: list.pinned }
-      : { name: '', color: '#FF3D8B', bg: 'aurora', kind: 'weekly', day: 0, time: '00:00', dom: 1, hours: 24, pin: true }
+      : { name: '', color: '#3B82F6', bg: 'aurora', kind: 'weekly', day: 0, time: '00:00', dom: 1, hours: 24, pin: true }
   );
   let f = $state(init);
   let dialog = $state();
@@ -181,12 +181,14 @@
 
     <div class="preview bg bg-{f.bg}" style="--c: {f.color}" aria-hidden="true">
       <p class="label">Aperçu</p>
-      <strong class="disp" style="font-size: 24px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere">{f.name.trim() || 'Sans titre'}</strong>
+      <strong style="font-size: 20px; font-weight: 650; line-height: 1.2; overflow-wrap: anywhere">{f.name.trim() || 'Sans titre'}</strong>
       <div class="track"><div class="fill" style="width: 33%"></div></div>
-      <div class="row done"><span class="row-main"><span class="cb on"><Icon name="check" size={12} stroke={3.6} /></span><span class="txt on">Élément terminé</span></span></div>
-      <div class="row"><span class="row-main"><span class="cb"></span><span class="txt">Élément à faire</span></span></div>
-      <div class="row"><span class="row-main"><span class="cb"></span><span class="txt">Élément à faire</span></span></div>
-      <span class="chip" style="align-self: flex-start; margin-top: 4px; font-size: 12px">{scheduleLabel(sched)}</span>
+      <div class="items">
+        <div class="row"><span class="row-main"><span class="cb on"><Icon name="check" size={12} stroke={3.2} /></span><span class="txt on">Élément terminé</span></span></div>
+        <div class="row"><span class="row-main"><span class="cb"></span><span class="txt">Élément à faire</span></span></div>
+        <div class="row" style="border-bottom: 0"><span class="row-main"><span class="cb"></span><span class="txt">Élément à faire</span></span></div>
+      </div>
+      <span class="chip" style="align-self: flex-start">{scheduleLabel(sched)}</span>
     </div>
   </form>
   </div>

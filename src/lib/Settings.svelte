@@ -29,6 +29,7 @@
 
   const KEYS = [
     ['Ctrl+Alt+C', 'Afficher / masquer Check (partout dans Windows)'],
+    ['Ctrl+Alt+B', 'Post-it : afficher, ramener devant ou masquer (partout)'],
     ['Ctrl+N', 'Nouvelle checklist'],
     ['N ou /', 'Ajouter un élément'],
     ['Ctrl+1 … 9', 'Aller à la checklist n'],
@@ -149,7 +150,7 @@
     <section class="section">
       <h2 class="label">Apparence</h2>
       <div class="card" style="padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap">
-        <span class="t" style="font-size: 15px; font-weight: 700">Thème</span>
+        <span class="t" style="font-size: 14px; font-weight: 500">Thème</span>
         <div class="segs" role="group" aria-label="Thème">
           {#each [['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Système']] as [id, name] (id)}
             <button class="seg" class:on={s.theme === id} aria-pressed={s.theme === id} onclick={() => setTheme(id)}>{name}</button>
@@ -186,9 +187,9 @@
       <h2 class="label">Mises à jour</h2>
       <div class="card" style="padding: 18px; display: flex; flex-direction: column; gap: 14px">
         <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
-          <Logo size={48} />
+          <Logo size={40} />
           <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 180px">
-            <span class="disp" style="font-size: 17px; font-weight: 800">Check <span class="mono" style="font-size: 13px">v{version}</span></span>
+            <span style="font-size: 15px; font-weight: 600">Check <span class="mono" style="font-size: 13px">v{version}</span></span>
             <span style="font-size: 13px; color: var(--muted); font-weight: 500">GitHub Releases · dernière vérification : {lastCheck}</span>
           </div>
           {#if up !== 'downloading'}
@@ -203,7 +204,7 @@
             <div class="update-box hot">
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
                 <span class="badge"></span>
-                <strong class="disp" style="font-size: 16px">Version {info.latest} disponible</strong>
+                <strong style="font-size: 14px">Version {info.latest} disponible</strong>
                 <span class="mono" style="font-size: 12px">signée · vérifiée avant installation</span>
               </div>
               {#if info.notes}<pre class="notes">{info.notes}</pre>{/if}
