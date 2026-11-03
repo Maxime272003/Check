@@ -4,7 +4,7 @@
   import MainWindow from './lib/MainWindow.svelte';
   import Widget from './lib/Widget.svelte';
 
-  const widgetId = new URLSearchParams(location.search).get('widget');
+  const widgetId = window.__CHECK_WIDGET__ ?? new URLSearchParams(location.search).get('widget');
   if (widgetId) document.documentElement.classList.add('is-widget');
 
   onMount(init);

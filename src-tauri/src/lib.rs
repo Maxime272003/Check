@@ -95,8 +95,13 @@ fn get_data(state: tauri::State<AppState>) -> AppData {
 }
 
 /// Remplace tout l'état (réordonner, supprimer, annuler, importer).
+// Les commandes qui peuvent ouvrir une fenêtre post-it sont `async` : elles tournent hors du fil
+// principal. Créer une fenêtre depuis une commande synchrone bloque la boucle de Windows
+// (la fenêtre principale ne répondait plus : impossible de la réduire, fermer ou déplacer).
+
 #[tauri::command]
-fn save_data(app: AppHandle, state: tauri::State<AppState>, data: AppData, origin: String) {
+async fn save_data(app: AppHandle, data: AppData, origin: String) {
+    let state = app.state::<AppState>();
     let (old, new) = state.replace(data);
     if old.settings.paused != new.settings.paused {
         sync_tray_pause(&app, new.settings.paused);
@@ -107,14 +112,16 @@ fn save_data(app: AppHandle, state: tauri::State<AppState>, data: AppData, origi
 
 /// Met à jour une seule checklist (cocher, renommer, options du post-it…) : plus léger que `save_data`.
 #[tauri::command]
-fn save_list(app: AppHandle, state: tauri::State<AppState>, list: Checklist, origin: String) {
+async fn save_list(app: AppHandle, list: Checklist, origin: String) {
+    let state = app.state::<AppState>();
     let (old, new, saved) = state.upsert_list(list);
     let _ = app.emit("list-changed", ListChanged { list: saved, origin });
     widgets::sync(&app, Some(&old), &new);
 }
 
 #[tauri::command]
-fn save_settings(app: AppHandle, state: tauri::State<AppState>, settings: Settings, origin: String) {
+async fn save_settings(app: AppHandle, settings: Settings, origin: String) {
+    let state = app.state::<AppState>();
     let paused_changed = {
         let mut d = state.data.lock().unwrap();
         let changed = d.settings.paused != settings.paused;
@@ -167,7 +174,7 @@ fn open_backups(app: AppHandle) -> Result<(), String> {
 // ---------- Commandes : système ----------
 
 #[tauri::command]
-fn open_main(app: AppHandle, list_id: Option<String>) {
+async fn open_main(app: AppHandle, list_id: Option<String>) {
     show_main(&app);
     if let Some(id) = list_id {
         let _ = app.emit_to("main", "focus-list", id);
@@ -187,7 +194,7 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, String> {
 }
 
 #[tauri::command]
-fn toggle_widgets_cmd(app: AppHandle) {
+async fn toggle_widgets_cmd(app: AppHandle) {
     toggle_widgets(&app);
 }
 

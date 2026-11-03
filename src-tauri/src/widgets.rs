@@ -91,11 +91,15 @@ fn spot_near_cursor(app: &AppHandle, width: f64, height: f64) -> Option<(f64, f6
 }
 
 fn open(app: &AppHandle, l: &Checklist) -> tauri::Result<()> {
-    let url = WebviewUrl::App(format!("index.html?widget={}", l.id).into());
+    // L'identifiant passe par un script d'initialisation : un `?widget=` dans l'URL ne survit pas
+    // au protocole de l'app une fois compilée, et la fenêtre affichait alors l'app complète.
+    let url = WebviewUrl::App("index.html".into());
+    let init = format!("window.__CHECK_WIDGET__ = {};", serde_json::to_string(&l.id).unwrap_or_else(|_| "null".into()));
     let w = l.widget.width + 2.0 * MARGIN;
     let h = l.widget.height.unwrap_or(140.0) + 2.0 * MARGIN;
     let mut b = WebviewWindowBuilder::new(app, label(&l.id), url)
         .title(&l.name)
+        .initialization_script(&init)
         .decorations(false)
         .transparent(true)
         .shadow(false)
