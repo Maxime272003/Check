@@ -29,7 +29,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "shortDescription": "Checklists de bureau qui se décochent toutes seules",
     "icon": [
       "icons/32x32.png",
@@ -41,6 +43,18 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZENDEyQjYxREQ5NDFEM0QKUldROUhaVGRZU3RCYlhLYVcwRW40WmJyRTdXOVEwZXR5SEl2RW5ZU1hJNCtFaVo3cXFua3VHdS8K",
+      "endpoints": [
+        "https://github.com/Maxime272003/Check/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

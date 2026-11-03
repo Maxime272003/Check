@@ -65,11 +65,10 @@
     }
   }
   async function install() {
-    if (!info?.url) return;
-    up = 'downloading';
+        up = 'downloading';
     progress = { downloaded: 0, total: info.size };
     try {
-      await invoke('install_update', { url: info.url });
+      await invoke('install_update');
     } catch (e) {
       error = String(e);
       up = 'error';
@@ -140,19 +139,19 @@
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
               <span class="badge"></span>
               <strong class="disp" style="font-size: 16px">Version {info.latest} disponible</strong>
-              {#if info.assetName}<span class="mono" style="font-size: 12px">{info.assetName} · {mo(info.size)} Mo</span>{/if}
+              <span class="mono" style="font-size: 12px">signée · vérifiée avant installation</span>
             </div>
             {#if info.notes}<pre class="notes">{info.notes}</pre>{/if}
             <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap">
               {#if info.htmlUrl}<button class="btn ghost" onclick={() => invoke('open_url', { url: info.htmlUrl })}><Icon name="external" size={15} />Voir la release</button>{/if}
-              <button class="btn primary" onclick={install} disabled={!info.url}><Icon name="download" size={16} stroke={2.4} />Installer et redémarrer</button>
+              <button class="btn primary" onclick={install}><Icon name="download" size={16} stroke={2.4} />Installer et redémarrer</button>
             </div>
           </div>
         {:else if up === 'downloading'}
           <div class="update-box hot">
             <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700">
               <span>Téléchargement de la version {info.latest}…</span>
-              <span class="mono">{mo(progress.downloaded)} / {mo(progress.total)} Mo</span>
+              <span class="mono">{mo(progress.downloaded)}{progress.total ? ` / ${mo(progress.total)}` : ''} Mo</span>
             </div>
             <div class="dl" role="progressbar" aria-label="Téléchargement" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100"><div style="width: {pct}%"></div></div>
             <span style="font-size: 12px; font-weight: 600">Check se fermera, s’installera puis redémarrera tout seul.</span>
