@@ -32,6 +32,9 @@
         <div class="chips">
           <span class="chip"><Icon name="reset" size={14} />{scheduleLabel(list.schedule)}</span>
           <span class="chip mono" style="font-size: 12px"><Icon name="clock" size={14} />{resetIn}</span>
+          {#if list.pinned && list.widget?.showWith}
+            <span class="chip" title="Le post-it n’apparaît que quand ce programme est ouvert"><Icon name="pin" size={13} />Avec {list.widget.showWith}</span>
+          {/if}
           {#if st.current > 1}
             <span class="chip streak" title="Périodes terminées d’affilée"><Icon name="flame" size={15} stroke={2.2} />Série : {st.current}</span>
           {/if}

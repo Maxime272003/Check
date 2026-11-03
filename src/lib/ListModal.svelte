@@ -1,7 +1,8 @@
 <script>
   import { untrack, onMount } from 'svelte';
   import Icon from './Icon.svelte';
-  import { store, commitList, toast, newList, deleteList, COLORS, BGS } from './state.svelte.js';
+  import { invoke } from '@tauri-apps/api/core';
+  import { store, commitList, toast, newList, deleteList, normalizeExe, COLORS, BGS } from './state.svelte.js';
   import { KINDS, DAYS, DAY_SHORT, nextReset, scheduleLabel, fmtIn, lowerFirst } from './schedule.js';
 
   /** list = null : création ; sinon modification de cette checklist. */
@@ -9,11 +10,19 @@
 
   const init = untrack(() =>
     list
-      ? { name: list.name, color: list.color, bg: list.bg, ...$state.snapshot(list.schedule), pin: list.pinned }
-      : { name: '', color: '#3B82F6', bg: 'aurora', kind: 'weekly', day: 0, time: '00:00', dom: 1, hours: 24, pin: true }
+      ? { name: list.name, color: list.color, bg: list.bg, ...$state.snapshot(list.schedule), pin: list.pinned, showWith: list.widget?.showWith ?? '' }
+      : { name: '', color: '#3B82F6', bg: 'aurora', kind: 'weekly', day: 0, time: '00:00', dom: 1, hours: 24, pin: true, showWith: '' }
   );
   let f = $state(init);
   let dialog = $state();
+  let appMode = $state(untrack(() => (f.showWith ? 'app' : 'always')));
+  let runningApps = $state([]);
+  $effect(() => {
+    if (f.pin && appMode === 'app' && !runningApps.length) {
+      invoke('running_apps').then((a) => (runningApps = a.map((x) => x.exe))).catch(() => {});
+    }
+  });
+  const showWithValue = $derived(f.pin && appMode === 'app' ? normalizeExe(f.showWith) : null);
 
   const sched = $derived({ kind: f.kind, day: f.day, time: f.time || '00:00', dom: Number(f.dom) || 1, hours: Number(f.hours) || 24 });
   const summary = $derived(
@@ -62,6 +71,7 @@
       list.bg = f.bg;
       list.schedule = sched;
       list.pinned = f.pin;
+      list.widget.showWith = showWithValue || null;
       if (schedChanged) {
         list.lastReset = Date.now();
         list.completedThisPeriod = false;
@@ -70,7 +80,7 @@
       toast('Checklist mise à jour');
       onclose();
     } else {
-      const nl = newList({ ...f, ...sched });
+      const nl = newList({ ...f, ...sched, showWith: showWithValue });
       store.data.lists.push(nl);
       commitList(store.data.lists[store.data.lists.length - 1]);
       toast(`Checklist « ${nl.name} » créée${f.pin ? ' et posée sur le bureau' : ''}`);
@@ -164,6 +174,28 @@
           </span>
           <span class="toggle" class:on={f.pin}></span>
         </button>
+        {#if f.pin}
+          <div class="field-group fadeup" style="gap: 10px; margin-top: -8px">
+            <span class="label" id="lbl-show">Afficher le post-it</span>
+            <div class="segs" role="group" aria-labelledby="lbl-show" style="align-self: flex-start">
+              <button type="button" class="seg" class:on={appMode === 'always'} aria-pressed={appMode === 'always'} onclick={() => (appMode = 'always')}>Tout le temps</button>
+              <button type="button" class="seg" class:on={appMode === 'app'} aria-pressed={appMode === 'app'} onclick={() => (appMode = 'app')}>Avec une application</button>
+            </div>
+            {#if appMode === 'app'}
+              <div class="when">
+                <label for="cl-app">Quand ce programme est ouvert :</label>
+                <input id="cl-app" class="field" style="width: 220px" list="running-apps" placeholder="ex. steam.exe" bind:value={f.showWith} autocomplete="off" />
+                <datalist id="running-apps">
+                  {#each runningApps as a (a)}<option value={a}></option>{/each}
+                </datalist>
+              </div>
+              <p class="summary">
+                Le post-it apparaît au lancement du programme et disparaît à sa fermeture. Commencez à taper pour choisir parmi les programmes ouverts.
+                Dans un jeu en plein écran exclusif, Windows ne laisse rien s’afficher par-dessus : utilisez le mode « fenêtré sans bordure ».
+              </p>
+            {/if}
+          </div>
+        {/if}
       </div>
 
       <div class="sheet-foot">

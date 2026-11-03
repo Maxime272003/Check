@@ -1,3 +1,4 @@
+mod apps;
 mod data;
 mod model;
 mod schedule;
@@ -379,6 +380,7 @@ pub fn run() {
         )
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
+            app.manage(apps::Running::default());
             let (state, first_run) = AppState::load(dir)?;
             let data = state.snapshot();
             state.backup();
@@ -401,6 +403,7 @@ pub fn run() {
             if data.settings.restore_widgets {
                 widgets::sync(&handle, None, &data);
             }
+            apps::start_watcher(handle.clone());
             start_ticker(handle);
             Ok(())
         })
@@ -425,6 +428,8 @@ pub fn run() {
                     if let Some(l) = d.lists.iter_mut().find(|l| widgets::label(&l.id) == label) {
                         l.widget.x = Some(p.x);
                         l.widget.y = Some(p.y);
+                        l.widget.px = Some(pos.x);
+                        l.widget.py = Some(pos.y);
                         state.dirty.store(true, Ordering::SeqCst);
                     }
                 }
@@ -452,6 +457,7 @@ pub fn run() {
             toggle_widgets_cmd,
             open_url,
             quit_app,
+            apps::running_apps,
             updater::check_update,
             updater::install_update
         ])

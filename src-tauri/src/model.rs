@@ -36,9 +36,14 @@ pub struct WidgetState {
     /// Position logique sur le bureau (gérée côté Rust uniquement).
     pub x: Option<f64>,
     pub y: Option<f64>,
+    /// Position en pixels réels (bureau virtuel, tous écrans) : c'est elle qui est utilisée au lancement.
+    pub px: Option<i32>,
+    pub py: Option<i32>,
     pub width: f64,
     /// Hauteur choisie en redimensionnant ; `None` = s'adapte au contenu.
     pub height: Option<f64>,
+    /// Si défini (ex. « steam.exe »), le post-it n'apparaît que pendant que ce programme tourne.
+    pub show_with: Option<String>,
     pub on_top: bool,
     pub locked: bool,
     pub opacity: f64,
@@ -47,7 +52,7 @@ pub struct WidgetState {
 
 impl Default for WidgetState {
     fn default() -> Self {
-        Self { x: None, y: None, width: 300.0, height: None, on_top: false, locked: false, opacity: 1.0, collapsed: false }
+        Self { x: None, y: None, px: None, py: None, width: 300.0, height: None, show_with: None, on_top: false, locked: false, opacity: 1.0, collapsed: false }
     }
 }
 

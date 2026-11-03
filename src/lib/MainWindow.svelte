@@ -21,18 +21,7 @@
 
   const active = $derived(store.data.lists.find((l) => l.id === activeId) ?? store.data.lists[0] ?? null);
 
-  // Thème
-  let systemDark = $state(window.matchMedia('(prefers-color-scheme: dark)').matches);
-  $effect(() => {
-    const t = store.data.settings.theme;
-    const dark = t === 'dark' || (t === 'system' && systemDark);
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  });
-
   onMount(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onMq = (e) => (systemDark = e.matches);
-    mq.addEventListener('change', onMq);
     const onHide = () => document.visibilityState === 'hidden' && flush();
     document.addEventListener('visibilitychange', onHide);
     const uns = [
@@ -46,7 +35,6 @@
       })
     ];
     return () => {
-      mq.removeEventListener('change', onMq);
       document.removeEventListener('visibilitychange', onHide);
       uns.forEach((u) => u.then((f) => f()));
     };

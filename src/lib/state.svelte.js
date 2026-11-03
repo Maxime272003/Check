@@ -117,6 +117,13 @@ export function uid() {
   return globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+/** « Steam » → « steam.exe » : nom de programme tel que Windows le voit. */
+export function normalizeExe(name) {
+  const n = String(name || '').trim().toLowerCase().split(/[\\/]/).pop();
+  if (!n) return null;
+  return /\.[a-z0-9]+$/.test(n) ? n : `${n}.exe`;
+}
+
 export function findList(id) {
   return store.data?.lists.find((l) => l.id === id);
 }
@@ -130,7 +137,7 @@ export function newList(f) {
     schedule: { kind: f.kind, day: f.day, time: f.time, dom: Number(f.dom) || 1, hours: Number(f.hours) || 24 },
     items: [],
     pinned: !!f.pin,
-    widget: { x: null, y: null, width: 300, height: null, onTop: false, locked: false, opacity: 1, collapsed: false },
+    widget: { x: null, y: null, width: 300, height: null, showWith: f.showWith || null, onTop: false, locked: false, opacity: 1, collapsed: false },
     lastReset: Date.now(),
     completedThisPeriod: false,
     completions: 0,

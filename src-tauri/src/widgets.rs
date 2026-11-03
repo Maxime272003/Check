@@ -1,5 +1,6 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
+use crate::apps;
 use crate::model::{AppData, Checklist};
 
 pub const PREFIX: &str = "widget-";
@@ -12,7 +13,22 @@ pub fn label(id: &str) -> String {
     format!("{PREFIX}{safe}")
 }
 
-/// Le haut du post-it (sa barre de déplacement) est-il visible sur au moins un écran ?
+/// Version en pixels réels (coordonnées du bureau virtuel, tous écrans confondus) :
+/// le haut du post-it est-il sur un écran branché ?
+pub fn on_screen_phys(app: &AppHandle, x: i32, y: i32) -> bool {
+    let Ok(monitors) = app.available_monitors() else { return true };
+    if monitors.is_empty() {
+        return true;
+    }
+    monitors.iter().any(|m| {
+        let p = m.position();
+        let z = m.size();
+        let (cx, cy) = (x + (80.0 * m.scale_factor()) as i32, y + (20.0 * m.scale_factor()) as i32);
+        cx >= p.x && cx < p.x + z.width as i32 && cy >= p.y && cy < p.y + z.height as i32
+    })
+}
+
+/// Ancien format (coordonnées logiques) : le haut du post-it est-il visible sur au moins un écran ?
 pub fn on_screen(app: &AppHandle, x: f64, y: f64, width: f64) -> bool {
     let Ok(monitors) = app.available_monitors() else { return true };
     if monitors.is_empty() {
@@ -114,14 +130,25 @@ fn open(app: &AppHandle, l: &Checklist) -> tauri::Result<()> {
         // Créée cachée : le post-it s'affiche lui-même une fois chargé et à la bonne taille.
         .visible(false)
         .focused(false);
-    b = match (l.widget.x, l.widget.y) {
-        (Some(x), Some(y)) if on_screen(app, x, y, l.widget.width) => b.position(x, y),
-        _ => match spot_near_cursor(app, w, h) {
-            Some((x, y)) => b.position(x, y),
-            None => b.center(),
-        },
+    // Position mémorisée en pixels réels : elle désigne sans ambiguïté un écran précis, même si
+    // les écrans n'ont pas la même mise à l'échelle. On la pose avant que la fenêtre s'affiche.
+    let saved_phys = match (l.widget.px, l.widget.py) {
+        (Some(x), Some(y)) if on_screen_phys(app, x, y) => Some(PhysicalPosition::new(x, y)),
+        _ => None,
     };
+    if saved_phys.is_none() {
+        b = match (l.widget.x, l.widget.y) {
+            (Some(x), Some(y)) if on_screen(app, x, y, l.widget.width) => b.position(x, y),
+            _ => match spot_near_cursor(app, w, h) {
+                Some((x, y)) => b.position(x, y),
+                None => b.center(),
+            },
+        };
+    }
     let win = b.build()?;
+    if let Some(p) = saved_phys {
+        let _ = win.set_position(p);
+    }
     set_low_memory(&win, true);
     Ok(())
 }
@@ -167,15 +194,39 @@ pub fn toggle_all(app: &AppHandle, data: &AppData) {
 /// Ramène sur l'écran principal les post-it devenus invisibles (écran débranché, mise à l'échelle…).
 pub fn ensure_visible(app: &AppHandle) {
     for (lbl, w) in app.webview_windows() {
-        if !lbl.starts_with(PREFIX) {
+        if !lbl.starts_with(PREFIX) || !w.is_visible().unwrap_or(false) {
             continue;
         }
-        let scale = w.scale_factor().unwrap_or(1.0);
-        let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) else { continue };
-        let p = pos.to_logical::<f64>(scale);
-        let z = size.to_logical::<f64>(scale);
-        if !on_screen(app, p.x, p.y, z.width) {
+        let Ok(pos) = w.outer_position() else { continue };
+        if !on_screen_phys(app, pos.x, pos.y) {
             let _ = w.center();
+        }
+    }
+}
+
+/// Le post-it doit-il être affiché maintenant ? (posé, et son programme lancé s'il en a un)
+pub fn wanted(app: &AppHandle, l: &Checklist) -> bool {
+    l.pinned
+        && match l.widget.show_with.as_deref().map(str::trim) {
+            Some(exe) if !exe.is_empty() => apps::is_running(app, exe),
+            _ => true,
+        }
+}
+
+/// Un programme s'est lancé ou fermé : ouvre ou ferme les post-it qui lui sont liés.
+pub fn apply_app_triggers(app: &AppHandle, data: &AppData) {
+    for l in data.lists.iter().filter(|l| l.pinned && l.widget.show_with.as_deref().is_some_and(|s| !s.trim().is_empty())) {
+        let want = wanted(app, l);
+        match app.get_webview_window(&label(&l.id)) {
+            Some(w) if !want => {
+                let _ = w.destroy();
+            }
+            None if want => {
+                if let Err(e) = open(app, l) {
+                    eprintln!("post-it {}: {e}", l.id);
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -186,18 +237,20 @@ pub fn ensure_visible(app: &AppHandle) {
 pub fn sync(app: &AppHandle, old: Option<&AppData>, new: &AppData) {
     for l in &new.lists {
         let lbl = label(&l.id);
-        let was_pinned = old
-            .map(|o| o.lists.iter().any(|x| x.id == l.id && x.pinned))
+        let want = wanted(app, l);
+        let was_wanted = old
+            .and_then(|o| o.lists.iter().find(|x| x.id == l.id))
+            .map(|x| wanted(app, x))
             .unwrap_or(false);
         match app.get_webview_window(&lbl) {
-            Some(w) if !l.pinned => {
+            Some(w) if !want => {
                 let _ = w.destroy();
             }
             Some(w) => {
                 let _ = w.set_always_on_top(l.widget.on_top);
                 let _ = w.set_title(&l.name);
             }
-            None if l.pinned && (old.is_none() || !was_pinned) => {
+            None if want && (old.is_none() || !was_wanted) => {
                 if let Err(e) = open(app, l) {
                     eprintln!("post-it {}: {e}", l.id);
                 }

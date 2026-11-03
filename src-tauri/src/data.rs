@@ -107,6 +107,8 @@ impl AppState {
             if let Some(o) = cur.lists.iter().find(|o| o.id == l.id) {
                 l.widget.x = o.widget.x;
                 l.widget.y = o.widget.y;
+                l.widget.px = o.widget.px;
+                l.widget.py = o.widget.py;
             }
             if l.last_reset == 0 {
                 l.last_reset = now;
@@ -128,6 +130,8 @@ impl AppState {
             Some(l) => {
                 list.widget.x = l.widget.x;
                 list.widget.y = l.widget.y;
+                list.widget.px = l.widget.px;
+                list.widget.py = l.widget.py;
                 *l = list.clone();
             }
             None => cur.lists.push(list.clone()),
@@ -148,6 +152,8 @@ impl AppState {
             l.pinned = false;
             l.widget.x = None;
             l.widget.y = None;
+            l.widget.px = None;
+            l.widget.py = None;
             if l.last_reset == 0 {
                 l.last_reset = now;
             }
