@@ -1,11 +1,11 @@
 <script>
-  import { untrack } from 'svelte';
+  import { untrack, onMount } from 'svelte';
   import Icon from './Icon.svelte';
-  import { store, commit, toast, newList, COLORS, BGS } from './state.svelte.js';
+  import { store, commitList, toast, newList, deleteList, COLORS, BGS } from './state.svelte.js';
   import { KINDS, DAYS, DAY_SHORT, nextReset, scheduleLabel, fmtIn, lowerFirst } from './schedule.js';
 
   /** list = null : création ; sinon modification de cette checklist. */
-  let { list = null, onclose, oncreated } = $props();
+  let { list = null, onclose, oncreated, ondeleted, onrestored } = $props();
 
   const init = untrack(() =>
     list
@@ -13,7 +13,7 @@
       : { name: '', color: '#FF3D8B', bg: 'aurora', kind: 'weekly', day: 0, time: '00:00', dom: 1, hours: 24, pin: true }
   );
   let f = $state(init);
-  let confirmDelete = $state(false);
+  let dialog = $state();
 
   const sched = $derived({ kind: f.kind, day: f.day, time: f.time || '00:00', dom: Number(f.dom) || 1, hours: Number(f.hours) || 24 });
   const summary = $derived(
@@ -21,6 +21,37 @@
       ? 'Les éléments restent cochés jusqu’à ce que vous les décochiez.'
       : `Tout sera décoché ${lowerFirst(scheduleLabel(sched))} — prochaine fois ${fmtIn(nextReset(sched, Date.now()), store.now)}.`
   );
+
+  // Focus piégé dans la fenêtre, rendu à l'élément d'origine à la fermeture.
+  onMount(() => {
+    const previous = document.activeElement;
+    dialog?.querySelector('#cl-name')?.focus();
+    return () => {
+      if (previous instanceof HTMLElement && document.contains(previous)) previous.focus();
+    };
+  });
+
+  function onkey(e) {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onclose();
+      return;
+    }
+    if (e.key !== 'Tab' || !dialog) return;
+    const els = [...dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter(
+      (el) => el.offsetParent !== null
+    );
+    if (!els.length) return;
+    const first = els[0];
+    const last = els[els.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   function submit(e) {
     e.preventDefault();
@@ -31,50 +62,41 @@
       list.bg = f.bg;
       list.schedule = sched;
       list.pinned = f.pin;
-      if (schedChanged) list.lastReset = Date.now();
-      commit();
+      if (schedChanged) {
+        list.lastReset = Date.now();
+        list.completedThisPeriod = false;
+      }
+      commitList(list);
       toast('Checklist mise à jour');
       onclose();
     } else {
       const nl = newList({ ...f, ...sched });
       store.data.lists.push(nl);
-      commit();
+      commitList(store.data.lists[store.data.lists.length - 1]);
       toast(`Checklist « ${nl.name} » créée${f.pin ? ' et posée sur le bureau' : ''}`);
       oncreated(nl.id);
     }
   }
 
   function remove() {
-    if (!confirmDelete) {
-      confirmDelete = true;
-      return;
-    }
-    store.data.lists = store.data.lists.filter((l) => l.id !== list.id);
-    commit();
-    toast(`« ${list.name} » supprimée`);
-    onclose(true);
-  }
-
-  function onkey(e) {
-    if (e.key === 'Escape') onclose();
-  }
-  function focus(node) {
-    node.focus();
+    deleteList(list, onrestored);
+    ondeleted();
   }
 </script>
 
-<div class="scrim" role="dialog" aria-modal="true" aria-labelledby="dlg-title" tabindex="-1" onkeydown={onkey}>
-  <form class="sheet" onsubmit={submit}>
+<div class="scrim" role="presentation" onkeydown={onkey}>
+  <div class="sheet" bind:this={dialog} role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+  <form style="display: contents" onsubmit={submit}>
     <div class="sheet-main">
       <div class="sheet-scroll">
         <div class="sheet-head">
           <h2 id="dlg-title">{list ? 'Modifier la checklist' : 'Nouvelle checklist'}</h2>
-          <button type="button" class="icon-btn" aria-label="Fermer" onclick={() => onclose()}><Icon name="x" size={18} /></button>
+          <button type="button" class="icon-btn" aria-label="Fermer (Échap)" onclick={() => onclose()}><Icon name="x" size={18} /></button>
         </div>
 
         <div class="field-group">
           <label for="cl-name" class="label">Nom</label>
-          <input id="cl-name" class="field" placeholder="Ex. Routine du soir" bind:value={f.name} autocomplete="off" use:focus />
+          <input id="cl-name" class="field" placeholder="Ex. Routine du soir" bind:value={f.name} autocomplete="off" />
         </div>
 
         <div class="field-group" style="gap: 4px">
@@ -132,7 +154,7 @@
               {/if}
             </div>
           {/if}
-          <p class="summary"><Icon name="clock" size={16} />{summary}</p>
+          <p class="summary" aria-live="polite"><Icon name="clock" size={16} />{summary}</p>
         </div>
 
         <button type="button" role="switch" aria-checked={f.pin} class="setrow" style="padding: 8px 0; border: 0" onclick={() => (f.pin = !f.pin)}>
@@ -147,9 +169,7 @@
       <div class="sheet-foot">
         <div>
           {#if list}
-            <button type="button" class="btn danger" class:armed={confirmDelete} onclick={remove}>
-              <Icon name="trash" size={16} />{confirmDelete ? 'Confirmer la suppression' : 'Supprimer'}
-            </button>
+            <button type="button" class="btn danger" onclick={remove}><Icon name="trash" size={16} />Supprimer</button>
           {/if}
         </div>
         <div style="display: flex; gap: 8px">
@@ -159,7 +179,7 @@
       </div>
     </div>
 
-    <div class="preview bg bg-{f.bg}" style="--c: {f.color}">
+    <div class="preview bg bg-{f.bg}" style="--c: {f.color}" aria-hidden="true">
       <p class="label">Aperçu</p>
       <strong class="disp" style="font-size: 24px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere">{f.name.trim() || 'Sans titre'}</strong>
       <div class="track"><div class="fill" style="width: 33%"></div></div>
@@ -169,4 +189,5 @@
       <span class="chip" style="align-self: flex-start; margin-top: 4px; font-size: 12px">{scheduleLabel(sched)}</span>
     </div>
   </form>
+  </div>
 </div>

@@ -1,11 +1,10 @@
+mod data;
 mod model;
 mod schedule;
 mod updater;
 mod widgets;
 
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -13,16 +12,14 @@ use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt as _};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 
-use model::AppData;
+use data::AppState;
+use model::{AppData, Checklist, HistEntry, Settings};
 
-pub struct AppState {
-    data: Mutex<AppData>,
-    path: PathBuf,
-    dirty: AtomicBool,
-}
+pub const GLOBAL_SHORTCUT: &str = "ctrl+alt+c";
 
 struct TrayPause(CheckMenuItem<Wry>);
 
@@ -32,42 +29,20 @@ struct DataChanged {
     origin: String,
 }
 
-fn now_ms() -> i64 {
+#[derive(Serialize, Clone)]
+struct ListChanged {
+    list: Checklist,
+    origin: String,
+}
+
+#[derive(Serialize, Clone)]
+struct SettingsChanged {
+    settings: Settings,
+    origin: String,
+}
+
+pub fn now_ms() -> i64 {
     chrono::Local::now().timestamp_millis()
-}
-
-impl AppState {
-    fn snapshot(&self) -> AppData {
-        self.data.lock().unwrap().clone()
-    }
-
-    fn save_now(&self) {
-        let data = self.snapshot();
-        match serde_json::to_vec_pretty(&data) {
-            Ok(bytes) => {
-                let tmp = self.path.with_extension("json.tmp");
-                if std::fs::write(&tmp, bytes).is_ok() {
-                    let _ = std::fs::rename(&tmp, &self.path);
-                }
-            }
-            Err(e) => eprintln!("sauvegarde: {e}"),
-        }
-        self.dirty.store(false, Ordering::SeqCst);
-    }
-}
-
-fn load(path: &PathBuf) -> (AppData, bool) {
-    match std::fs::read(path) {
-        Ok(bytes) => match serde_json::from_slice::<AppData>(&bytes) {
-            Ok(d) => (d, false),
-            Err(e) => {
-                eprintln!("données illisibles ({e}), sauvegarde de secours créée");
-                let _ = std::fs::copy(path, path.with_extension("json.bak"));
-                (model::seed(now_ms()), false)
-            }
-        },
-        Err(_) => (model::seed(now_ms()), true),
-    }
 }
 
 fn broadcast(app: &AppHandle, origin: &str) {
@@ -83,39 +58,101 @@ fn show_main(app: &AppHandle) {
     }
 }
 
-// ---------- Commandes ----------
+fn toggle_main(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let visible = w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false);
+        if visible && w.is_focused().unwrap_or(false) {
+            let _ = w.hide();
+        } else {
+            show_main(app);
+        }
+    }
+}
+
+fn sync_tray_pause(app: &AppHandle, paused: bool) {
+    if let Some(p) = app.try_state::<TrayPause>() {
+        let _ = p.0.set_checked(paused);
+    }
+}
+
+// ---------- Commandes : données ----------
 
 #[tauri::command]
 fn get_data(state: tauri::State<AppState>) -> AppData {
     state.snapshot()
 }
 
+/// Remplace tout l'état (réordonner, supprimer, annuler, importer).
 #[tauri::command]
-fn save_data(app: AppHandle, state: tauri::State<AppState>, mut data: AppData, origin: String) {
-    let old = {
-        let mut cur = state.data.lock().unwrap();
-        let now = now_ms();
-        for l in data.lists.iter_mut() {
-            // La position des post-it est gérée côté Rust (événements de déplacement).
-            if let Some(o) = cur.lists.iter().find(|o| o.id == l.id) {
-                l.widget.x = o.widget.x;
-                l.widget.y = o.widget.y;
-            }
-            if l.last_reset == 0 {
-                l.last_reset = now;
-            }
-        }
-        std::mem::replace(&mut *cur, data.clone())
-    };
-    if old.settings.paused != data.settings.paused {
-        if let Some(p) = app.try_state::<TrayPause>() {
-            let _ = p.0.set_checked(data.settings.paused);
-        }
+fn save_data(app: AppHandle, state: tauri::State<AppState>, data: AppData, origin: String) {
+    let (old, new) = state.replace(data);
+    if old.settings.paused != new.settings.paused {
+        sync_tray_pause(&app, new.settings.paused);
     }
-    state.save_now();
-    let _ = app.emit("data-changed", DataChanged { data: data.clone(), origin });
-    widgets::sync(&app, Some(&old), &data);
+    let _ = app.emit("data-changed", DataChanged { data: new.clone(), origin });
+    widgets::sync(&app, Some(&old), &new);
 }
+
+/// Met à jour une seule checklist (cocher, renommer, options du post-it…) : plus léger que `save_data`.
+#[tauri::command]
+fn save_list(app: AppHandle, state: tauri::State<AppState>, list: Checklist, origin: String) {
+    let (old, new, saved) = state.upsert_list(list);
+    let _ = app.emit("list-changed", ListChanged { list: saved, origin });
+    widgets::sync(&app, Some(&old), &new);
+}
+
+#[tauri::command]
+fn save_settings(app: AppHandle, state: tauri::State<AppState>, settings: Settings, origin: String) {
+    let paused_changed = {
+        let mut d = state.data.lock().unwrap();
+        let changed = d.settings.paused != settings.paused;
+        d.settings = settings.clone();
+        changed
+    };
+    state.dirty.store(true, Ordering::SeqCst);
+    if paused_changed {
+        sync_tray_pause(&app, settings.paused);
+    }
+    let _ = app.emit("settings-changed", SettingsChanged { settings, origin });
+}
+
+#[tauri::command]
+async fn export_data(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let name = format!("check-export-{}.json", chrono::Local::now().format("%Y-%m-%d"));
+    let Some(path) = app.dialog().file().add_filter("JSON", &["json"]).set_file_name(&name).blocking_save_file() else {
+        return Ok(None);
+    };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    let data = app.state::<AppState>().snapshot();
+    let bytes = serde_json::to_vec_pretty(&data).map_err(|e| e.to_string())?;
+    std::fs::write(&path, bytes).map_err(|e| format!("Écriture impossible : {e}"))?;
+    Ok(Some(path.display().to_string()))
+}
+
+/// Importe des checklists depuis un export ou une sauvegarde : elles s'ajoutent aux existantes.
+#[tauri::command]
+async fn import_data(app: AppHandle) -> Result<usize, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let Some(path) = app.dialog().file().add_filter("JSON", &["json"]).blocking_pick_file() else {
+        return Ok(0);
+    };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    let bytes = std::fs::read(&path).map_err(|e| format!("Lecture impossible : {e}"))?;
+    let imported: AppData = serde_json::from_slice(&bytes).map_err(|_| "Ce fichier n’est pas un export Check valide.".to_string())?;
+    let count = app.state::<AppState>().import(imported.lists);
+    broadcast(&app, "import");
+    Ok(count)
+}
+
+#[tauri::command]
+fn open_backups(app: AppHandle) -> Result<(), String> {
+    let dir = app.state::<AppState>().backup_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    app.opener().open_path(dir.display().to_string(), None::<&str>).map_err(|e| e.to_string())
+}
+
+// ---------- Commandes : système ----------
 
 #[tauri::command]
 fn open_main(app: AppHandle, list_id: Option<String>) {
@@ -143,6 +180,11 @@ fn app_version(app: AppHandle) -> String {
 }
 
 #[tauri::command]
+fn widget_count(app: AppHandle) -> usize {
+    app.webview_windows().keys().filter(|l| l.starts_with(widgets::PREFIX)).count()
+}
+
+#[tauri::command]
 fn open_url(app: AppHandle, url: String) -> Result<(), String> {
     if !url.starts_with("https://github.com/") {
         return Err("Lien refusé".into());
@@ -161,6 +203,7 @@ fn quit_app(app: AppHandle) {
 fn run_resets(app: &AppHandle) {
     let state = app.state::<AppState>();
     let mut reset_names = Vec::new();
+    let mut changed = false;
     {
         let mut d = state.data.lock().unwrap();
         if d.settings.paused {
@@ -170,22 +213,30 @@ fn run_resets(app: &AppHandle) {
         for l in d.lists.iter_mut() {
             if l.last_reset == 0 {
                 l.last_reset = now;
+                changed = true;
                 continue;
             }
-            if let Some(next) = schedule::next_reset(&l.schedule, l.last_reset) {
-                if now >= next {
-                    let had_checked = l.items.iter().any(|i| i.done);
-                    l.items.iter_mut().for_each(|i| i.done = false);
-                    l.last_reset = now;
-                    if had_checked {
-                        reset_names.push(l.name.clone());
-                    }
-                    state.dirty.store(true, Ordering::SeqCst);
-                }
+            let Some(next) = schedule::next_reset(&l.schedule, l.last_reset) else { continue };
+            if now < next {
+                continue;
             }
+            let total = l.items.len() as u32;
+            let done = l.items.iter().filter(|i| i.done).count() as u32;
+            l.history.push(HistEntry { at: now, done, total, completed: l.completed_this_period || (total > 0 && done == total) });
+            if l.history.len() > model::HISTORY_MAX {
+                let extra = l.history.len() - model::HISTORY_MAX;
+                l.history.drain(0..extra);
+            }
+            l.completed_this_period = false;
+            l.items.iter_mut().for_each(|i| i.done = false);
+            l.last_reset = now;
+            if done > 0 {
+                reset_names.push(l.name.clone());
+            }
+            changed = true;
         }
     }
-    if state.dirty.load(Ordering::SeqCst) {
+    if changed {
         state.save_now();
         broadcast(app, "scheduler");
     }
@@ -206,11 +257,16 @@ fn start_ticker(app: AppHandle) {
             std::thread::sleep(Duration::from_secs(1));
             tick += 1;
             let state = app.state::<AppState>();
+            // Les écritures sont regroupées : au plus une par seconde.
+            if state.dirty.load(Ordering::SeqCst) {
+                state.save_now();
+            }
             if tick % 15 == 1 {
                 run_resets(&app);
+                widgets::ensure_visible(&app);
             }
-            if state.dirty.load(Ordering::SeqCst) && tick % 2 == 0 {
-                state.save_now();
+            if tick % (6 * 3600) == 0 {
+                state.backup();
             }
         }
     });
@@ -219,7 +275,7 @@ fn start_ticker(app: AppHandle) {
 // ---------- Zone de notification ----------
 
 fn build_tray(app: &AppHandle, paused: bool) -> tauri::Result<()> {
-    let open_i = MenuItem::with_id(app, "open", "Ouvrir Check", true, None::<&str>)?;
+    let open_i = MenuItem::with_id(app, "open", "Ouvrir Check", true, Some("Ctrl+Alt+C"))?;
     let new_i = MenuItem::with_id(app, "new", "Nouvelle checklist", true, None::<&str>)?;
     let pause_i = CheckMenuItem::with_id(app, "pause", "Suspendre les remises à zéro", true, paused, None::<&str>)?;
     let settings_i = MenuItem::with_id(app, "settings", "Paramètres", true, None::<&str>)?;
@@ -244,16 +300,14 @@ fn build_tray(app: &AppHandle, paused: bool) -> tauri::Result<()> {
             }
             "pause" => {
                 let state = app.state::<AppState>();
-                let paused = {
+                let settings = {
                     let mut d = state.data.lock().unwrap();
                     d.settings.paused = !d.settings.paused;
-                    d.settings.paused
+                    d.settings.clone()
                 };
-                if let Some(p) = app.try_state::<TrayPause>() {
-                    let _ = p.0.set_checked(paused);
-                }
-                state.save_now();
-                broadcast(app, "tray");
+                sync_tray_pause(app, settings.paused);
+                state.dirty.store(true, Ordering::SeqCst);
+                let _ = app.emit("settings-changed", SettingsChanged { settings, origin: "tray".into() });
             }
             "quit" => {
                 app.state::<AppState>().save_now();
@@ -281,15 +335,28 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        toggle_main(app);
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&dir)?;
-            let path = dir.join("data.json");
-            let (data, first_run) = load(&path);
-            app.manage(AppState { data: Mutex::new(data.clone()), path, dirty: AtomicBool::new(first_run) });
+            let (state, first_run) = AppState::load(dir)?;
+            let data = state.snapshot();
+            state.backup();
+            app.manage(state);
             if first_run {
                 let _ = app.autolaunch().enable();
+            }
+            if let Err(e) = app.global_shortcut().register(GLOBAL_SHORTCUT) {
+                eprintln!("raccourci global {GLOBAL_SHORTCUT} indisponible : {e}");
             }
             let handle = app.handle().clone();
             build_tray(&handle, data.settings.paused)?;
@@ -306,9 +373,9 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             let label = window.label().to_string();
+            let app = window.app_handle();
             match event {
                 WindowEvent::CloseRequested { api, .. } if label == "main" => {
-                    let app = window.app_handle();
                     if app.state::<AppState>().snapshot().settings.close_to_tray {
                         api.prevent_close();
                         let _ = window.hide();
@@ -320,12 +387,17 @@ pub fn run() {
                 WindowEvent::Moved(pos) if label.starts_with(widgets::PREFIX) => {
                     let scale = window.scale_factor().unwrap_or(1.0);
                     let p = pos.to_logical::<f64>(scale);
-                    let state = window.app_handle().state::<AppState>();
+                    let state = app.state::<AppState>();
                     let mut d = state.data.lock().unwrap();
                     if let Some(l) = d.lists.iter_mut().find(|l| widgets::label(&l.id) == label) {
                         l.widget.x = Some(p.x);
                         l.widget.y = Some(p.y);
                         state.dirty.store(true, Ordering::SeqCst);
+                    }
+                }
+                WindowEvent::Focused(focused) if label.starts_with(widgets::PREFIX) => {
+                    if let Some(w) = app.get_webview_window(&label) {
+                        widgets::set_low_memory(&w, !focused);
                     }
                 }
                 _ => {}
@@ -334,10 +406,16 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_data,
             save_data,
+            save_list,
+            save_settings,
+            export_data,
+            import_data,
+            open_backups,
             open_main,
             get_autostart,
             set_autostart,
             app_version,
+            widget_count,
             open_url,
             quit_app,
             updater::check_update,

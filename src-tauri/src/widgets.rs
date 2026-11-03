@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::model::{AppData, Checklist};
 
@@ -11,6 +11,42 @@ pub fn label(id: &str) -> String {
         .collect();
     format!("{PREFIX}{safe}")
 }
+
+/// Le haut du post-it (sa barre de déplacement) est-il visible sur au moins un écran ?
+pub fn on_screen(app: &AppHandle, x: f64, y: f64, width: f64) -> bool {
+    let Ok(monitors) = app.available_monitors() else { return true };
+    if monitors.is_empty() {
+        return true;
+    }
+    let (cx, cy) = (x + width.min(160.0) / 2.0, y + 18.0);
+    monitors.iter().any(|m| {
+        let s = m.scale_factor();
+        let p = m.position().to_logical::<f64>(s);
+        let z = m.size().to_logical::<f64>(s);
+        cx >= p.x && cx <= p.x + z.width && cy >= p.y && cy <= p.y + z.height - 24.0
+    })
+}
+
+/// Demande à WebView2 de réduire la mémoire d'un post-it inactif (Windows uniquement).
+#[cfg(windows)]
+pub fn set_low_memory(w: &WebviewWindow, low: bool) {
+    let _ = w.with_webview(move |wv| unsafe {
+        use webview2_com::Microsoft::Web::WebView2::Win32::{
+            ICoreWebView2_19, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
+            COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
+        };
+        use windows_core::Interface;
+        if let Ok(core) = wv.controller().CoreWebView2() {
+            if let Ok(c19) = core.cast::<ICoreWebView2_19>() {
+                let level = if low { COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW } else { COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL };
+                let _ = c19.SetMemoryUsageTargetLevel(level);
+            }
+        }
+    });
+}
+
+#[cfg(not(windows))]
+pub fn set_low_memory(_w: &WebviewWindow, _low: bool) {}
 
 fn open(app: &AppHandle, l: &Checklist) -> tauri::Result<()> {
     let url = WebviewUrl::App(format!("index.html?widget={}", l.id).into());
@@ -25,11 +61,28 @@ fn open(app: &AppHandle, l: &Checklist) -> tauri::Result<()> {
         .inner_size(l.widget.width + 16.0, 140.0)
         .focused(false);
     b = match (l.widget.x, l.widget.y) {
-        (Some(x), Some(y)) => b.position(x, y),
+        (Some(x), Some(y)) if on_screen(app, x, y, l.widget.width) => b.position(x, y),
         _ => b.center(),
     };
-    b.build()?;
+    let w = b.build()?;
+    set_low_memory(&w, true);
     Ok(())
+}
+
+/// Ramène sur l'écran principal les post-it devenus invisibles (écran débranché, mise à l'échelle…).
+pub fn ensure_visible(app: &AppHandle) {
+    for (lbl, w) in app.webview_windows() {
+        if !lbl.starts_with(PREFIX) {
+            continue;
+        }
+        let scale = w.scale_factor().unwrap_or(1.0);
+        let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) else { continue };
+        let p = pos.to_logical::<f64>(scale);
+        let z = size.to_logical::<f64>(scale);
+        if !on_screen(app, p.x, p.y, z.width) {
+            let _ = w.center();
+        }
+    }
 }
 
 /// Ouvre, ferme ou met à jour les fenêtres post-it.

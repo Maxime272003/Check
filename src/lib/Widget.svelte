@@ -4,7 +4,7 @@
   import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
   import Icon from './Icon.svelte';
   import Items from './Items.svelte';
-  import { store, commit, findList } from './state.svelte.js';
+  import { store, commitList, findList } from './state.svelte.js';
   import { nextReset, scheduleLabel, fmtIn } from './schedule.js';
 
   let { id } = $props();
@@ -38,7 +38,7 @@
 
   function set(key, value) {
     list.widget[key] = value;
-    commit();
+    commitList(list);
   }
   function startDrag(e) {
     if (e.button !== 0 || list.widget.locked || e.target.closest('button')) return;
@@ -46,7 +46,7 @@
   }
   function unpin() {
     list.pinned = false;
-    commit();
+    commitList(list);
   }
 </script>
 

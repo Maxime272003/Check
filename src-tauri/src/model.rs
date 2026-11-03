@@ -62,7 +62,24 @@ pub struct Checklist {
     pub widget: WidgetState,
     /// Horodatage (ms) de la dernière remise à zéro, point de départ du calcul de la suivante.
     pub last_reset: i64,
+    /// La checklist a été entièrement cochée pendant la période en cours.
+    pub completed_this_period: bool,
+    /// Nombre total de fois où la checklist a été entièrement cochée.
+    pub completions: u32,
+    /// Une entrée par période terminée (remise à zéro), la plus récente en dernier.
+    pub history: Vec<HistEntry>,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct HistEntry {
+    pub at: i64,
+    pub done: u32,
+    pub total: u32,
+    pub completed: bool,
+}
+
+pub const HISTORY_MAX: usize = 60;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -114,6 +131,7 @@ pub fn seed(now: i64) -> AppData {
             pinned: false,
             widget: WidgetState::default(),
             last_reset: now,
+            ..Default::default()
         }],
         settings: Settings::default(),
     }
