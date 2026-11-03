@@ -51,11 +51,13 @@ pub struct WidgetState {
     pub locked: bool,
     pub opacity: f64,
     pub collapsed: bool,
+    /// Post-it : section « Terminés » repliée.
+    pub hide_done: bool,
 }
 
 impl Default for WidgetState {
     fn default() -> Self {
-        Self { x: None, y: None, px: None, py: None, width: 300.0, height: None, show_with: None, on_top: false, locked: false, opacity: 1.0, collapsed: false }
+        Self { x: None, y: None, px: None, py: None, width: 300.0, height: None, show_with: None, on_top: false, locked: false, opacity: 1.0, collapsed: false, hide_done: false }
     }
 }
 

@@ -321,3 +321,8 @@ html.reordering, html.reordering * { cursor: grabbing !important; }
 .scroll-fade.fade-bottom { --fade-bottom: 36px; }
 .w-body.scroll-fade.fade-top { --fade-top: 18px; }
 .w-body.scroll-fade.fade-bottom { --fade-bottom: 18px; }
+.w-body .done-sep:has(.sep-toggle) { padding: 0; }
+.sep-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 4px 6px 4px 8px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 11px; text-align: left; }
+.sep-toggle:hover { color: var(--text); background: var(--hover); }
+.sep-toggle .chev { display: grid; place-items: center; transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+.sep-toggle .chev.closed { transform: rotate(180deg); }

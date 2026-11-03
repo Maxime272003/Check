@@ -26,13 +26,20 @@
 
   // Une seule liste animée (à faire, ajout, séparateur, terminés) : un élément coché
   // glisse à travers les autres jusqu'à sa nouvelle place, sans disparaître.
+  // Post-it : les terminés peuvent être repliés (mémorisé par post-it).
+  const hideDone = $derived(compact && !!list.widget?.hideDone);
+  function toggleDone() {
+    list.widget.hideDone = !list.widget.hideDone;
+    commitList(list);
+  }
+
   const entries = $derived([
     ...todo.map((it, idx) => ({ key: it.id, kind: 'item', it, idx, group: 'todo' })),
     ...(list.items.length === 0 && !compact ? [{ key: '__empty', kind: 'empty' }] : []),
     ...(todo.length === 0 && done.length > 0 ? [{ key: '__alldone', kind: 'alldone' }] : []),
     { key: '__add', kind: 'add' },
     ...(done.length > 0 ? [{ key: '__sep', kind: 'sep' }] : []),
-    ...done.map((it, idx) => ({ key: it.id, kind: 'item', it, idx, group: 'done' }))
+    ...(hideDone ? [] : done.map((it, idx) => ({ key: it.id, kind: 'item', it, idx, group: 'done' })))
   ]);
 
   function toggle(it) {
@@ -155,7 +162,14 @@
           <input id="add-{list.id}" placeholder={compact ? 'Ajouter…' : 'Ajouter un élément puis Entrée  (N)'} bind:value={draft} autocomplete="off" />
         </form>
       {:else if e.kind === 'sep'}
-        Terminés · {done.length}
+        {#if compact}
+          <button class="sep-toggle" aria-expanded={!hideDone} onclick={toggleDone} title={hideDone ? 'Afficher les terminés' : 'Masquer les terminés'}>
+            <span>Terminés · {done.length}</span>
+            <span class="chev" class:closed={hideDone}><Icon name="up" size={13} stroke={2.4} /></span>
+          </button>
+        {:else}
+          Terminés · {done.length}
+        {/if}
       {:else if e.kind === 'alldone'}
         <Icon name="circleCheck" size={15} />Tout est fait
       {:else}
