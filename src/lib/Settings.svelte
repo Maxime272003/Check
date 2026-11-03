@@ -4,6 +4,7 @@
   import { listen } from '@tauri-apps/api/event';
   import Icon from './Icon.svelte';
   import Logo from './Logo.svelte';
+  import { scrollFade } from './scrollFade.js';
   import { store, commitSettings, toast, flush } from './state.svelte.js';
 
   const REPO_URL = 'https://github.com/Maxime272003/Check';
@@ -117,7 +118,7 @@
   }
 </script>
 
-<div class="settings fadeup">
+<div class="settings fadeup" use:scrollFade>
   <div class="settings-col">
     <h1>Paramètres</h1>
 

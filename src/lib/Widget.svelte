@@ -4,6 +4,7 @@
   import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
   import Icon from './Icon.svelte';
   import Items from './Items.svelte';
+  import { scrollFade } from './scrollFade.js';
   import { store, commitList, findList } from './state.svelte.js';
   import { nextReset, scheduleLabel, fmtIn } from './schedule.js';
 
@@ -154,7 +155,7 @@
     {/if}
 
     {#if !list.widget.collapsed}
-      <div class="w-body">
+      <div class="w-body" use:scrollFade>
         <div class="track"><div class="fill" style="width: {pct}%"></div></div>
         <Items {list} compact />
         <div class="w-foot"><Icon name="reset" size={12} />{resetText}</div>

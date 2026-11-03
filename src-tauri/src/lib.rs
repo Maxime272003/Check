@@ -253,7 +253,10 @@ fn run_resets(app: &AppHandle) {
                 l.history.drain(0..extra);
             }
             l.completed_this_period = false;
-            l.items.iter_mut().for_each(|i| i.done = false);
+            l.items.iter_mut().for_each(|i| {
+                i.done = false;
+                i.done_at = None;
+            });
             l.last_reset = now;
             if done > 0 {
                 reset_names.push(l.name.clone());

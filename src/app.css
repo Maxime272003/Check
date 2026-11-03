@@ -91,18 +91,19 @@ h1, h2 { margin: 0; }
 .body { flex: 1; display: flex; min-height: 0; }
 .sidebar { width: 248px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 4px 10px 12px; }
 .lists { display: flex; flex-direction: column; gap: 1px; flex: 1; overflow: auto; }
-.nav { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; font-size: 13.5px; font-weight: 500; text-align: left; color: var(--text); transition: background .12s; }
+.nav { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; background: transparent; font-size: 13.5px; font-weight: 500; text-align: left; color: var(--text); transition: background .12s; }
 .nav:hover { background: var(--hover); }
-.nav.on { background: var(--surface); box-shadow: var(--shadow-sm), 0 0 0 1px var(--line); }
+.nav.on { background: var(--surface); border-color: var(--line); box-shadow: var(--shadow-sm); }
 .nav .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .nav .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav .count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .nav svg { color: var(--muted); }
-.pane { flex: 1; min-width: 0; margin: 0 8px 8px 0; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); }
+.pane { flex: 1; min-width: 0; margin: 0 8px 8px 0; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid var(--line); box-shadow: var(--shadow); background: transparent; isolation: isolate; }
 .paused-banner { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin: 6px 0 2px; border-radius: 8px; background: var(--surface-2); font-size: 12px; font-weight: 500; color: var(--muted); }
 
 /* ---------- Checklist ---------- */
-.list-pane { height: 100%; overflow: auto; padding: 32px 40px 40px; }
+.list-pane { height: 100%; overflow: hidden; }
+.list-scroll { height: 100%; overflow: auto; padding: 32px 40px 40px; }
 .list-col { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .list-title { margin: 4px 0 12px; font-size: 26px; font-weight: 650; letter-spacing: -.02em; line-height: 1.2; overflow-wrap: anywhere; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -175,9 +176,9 @@ h1, h2 { margin: 0; }
 .toggle.sm::after { width: 13px; height: 13px; }
 .toggle.sm.on::after { transform: translateX(13px); }
 .segs { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: var(--surface-2); border-radius: 9px; }
-.seg { height: 30px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; font-weight: 500; font-size: 13px; color: var(--muted); transition: background .15s, color .15s; }
+.seg { height: 30px; padding: 0 11px; border: 1px solid transparent; border-radius: 7px; background: transparent; font-weight: 500; font-size: 13px; color: var(--muted); transition: background .15s, color .15s; }
 .seg:hover { color: var(--text); }
-.seg.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm), 0 0 0 1px var(--line); }
+.seg.on { background: var(--surface); color: var(--text); border-color: var(--line); box-shadow: var(--shadow-sm); }
 .update-box { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); animation: fadeUp .25s ease; }
 .update-box.hot { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
 .update-box.ok { color: #15803D; background: color-mix(in srgb, #16A34A 8%, var(--surface)); border-color: color-mix(in srgb, #16A34A 25%, var(--line)); }
@@ -246,7 +247,7 @@ kbd { display: inline-block; min-width: 24px; padding: 2px 7px; border-radius: 6
 .tbtn:hover { background: var(--hover); color: var(--text); }
 .tbtn.on { color: var(--c); opacity: 1; }
 .w-pin-on { opacity: 1 !important; }
-.w-body { flex: 1; min-height: 0; overflow: auto; padding: 0 10px 10px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
+.w-body { flex: 1; min-height: 0; overflow: auto; padding: 0 10px 10px; display: flex; flex-direction: column; gap: 8px;  }
 .w-body .track { height: 4px; flex: none; }
 .w-body .items { box-shadow: none; border-radius: 9px; }
 .w-body .row-main { min-height: 34px; padding: 6px 8px; font-size: 13px; gap: 9px; }
@@ -288,3 +289,35 @@ html.reordering, html.reordering * { cursor: grabbing !important; }
 }
 .widget.bg-lines { background-image: repeating-linear-gradient(transparent 0 31px, color-mix(in srgb, var(--c) 12%, transparent) 31px 32px); }
 .sw.mini:not(.bg-night) { background-color: color-mix(in srgb, var(--c) 16%, #fff); }
+
+/* ---------- À faire en haut, terminés en bas ---------- */
+.done-sep { position: relative; padding: 7px 14px; font-size: 12px; font-weight: 500; color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); margin-top: -1px; }
+.add-wrap, .w-add-wrap { border-bottom: 1px solid var(--line); background: var(--surface); }
+.items > :last-child { border-bottom: 0 !important; }
+.row.moving { z-index: 3; box-shadow: var(--shadow-lg); border-radius: 8px; transform-origin: center; animation: lift .56s ease; }
+@keyframes lift { 0% { scale: 1; } 30% { scale: 1.025; } 100% { scale: 1; } }
+.row.done { background: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); }
+.empty.all-done { display: flex; align-items: center; gap: 8px; color: var(--c); font-weight: 500; }
+.w-body .done-sep { padding: 4px 8px; font-size: 11px; }
+
+/* ---------- Barres de défilement ---------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--text) 16%, transparent); border: 3px solid transparent; border-radius: 999px; background-clip: padding-box; min-height: 32px; }
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--text) 30%, transparent); }
+::-webkit-scrollbar-thumb:active { background-color: color-mix(in srgb, var(--text) 42%, transparent); }
+.w-body::-webkit-scrollbar { width: 8px; }
+
+/* ---------- Fondu au défilement ---------- */
+@property --fade-top { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --fade-bottom { syntax: '<length>'; inherits: false; initial-value: 0px; }
+.scroll-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+  transition: --fade-top .25s ease, --fade-bottom .25s ease;
+}
+.scroll-fade.fade-top { --fade-top: 36px; }
+.scroll-fade.fade-bottom { --fade-bottom: 36px; }
+.w-body.scroll-fade.fade-top { --fade-top: 18px; }
+.w-body.scroll-fade.fade-bottom { --fade-bottom: 18px; }

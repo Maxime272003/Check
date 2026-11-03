@@ -6,6 +6,9 @@ pub struct Item {
     pub id: String,
     pub text: String,
     pub done: bool,
+    /// Moment où l'élément a été coché (ms) : les terminés s'affichent dans cet ordre, le dernier en bas.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub done_at: Option<i64>,
 }
 
 /// Quand tout est décoché automatiquement.
@@ -125,7 +128,7 @@ pub fn seed(now: i64) -> AppData {
     let items = ["Découvrir Check", "Créer ma première checklist", "La poser sur le bureau"]
         .iter()
         .enumerate()
-        .map(|(i, t)| Item { id: format!("seed-{i}"), text: (*t).into(), done: i == 0 })
+        .map(|(i, t)| Item { id: format!("seed-{i}"), text: (*t).into(), done: i == 0, done_at: None })
         .collect();
     AppData {
         lists: vec![Checklist {

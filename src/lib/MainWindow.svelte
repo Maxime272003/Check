@@ -10,6 +10,7 @@
   import ListModal from './ListModal.svelte';
   import { store, commitAll, flush, runUndo, uncheckAll, togglePin } from './state.svelte.js';
   import { dragReorder } from './reorder.js';
+  import { scrollFade } from './scrollFade.js';
 
   const win = getCurrentWindow();
   let screen = $state('list');
@@ -145,7 +146,7 @@
         <Icon name="plus" size={15} stroke={2.2} />Nouvelle checklist
       </button>
       <p class="label" style="padding: 16px 10px 6px">Mes checklists</p>
-      <div class="lists" bind:this={navBox}>
+      <div class="lists" bind:this={navBox} use:scrollFade>
         {#each store.data.lists as l, idx (l.id)}
           <button
             class="nav"

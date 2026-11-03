@@ -1,6 +1,7 @@
 <script>
   import { untrack, onMount } from 'svelte';
   import Icon from './Icon.svelte';
+  import { scrollFade } from './scrollFade.js';
   import { invoke } from '@tauri-apps/api/core';
   import { store, commitList, toast, newList, deleteList, normalizeExe, COLORS, BGS } from './state.svelte.js';
   import { KINDS, DAYS, DAY_SHORT, nextReset, scheduleLabel, fmtIn, lowerFirst } from './schedule.js';
@@ -98,7 +99,7 @@
   <div class="sheet" bind:this={dialog} role="dialog" aria-modal="true" aria-labelledby="dlg-title">
   <form style="display: contents" onsubmit={submit}>
     <div class="sheet-main">
-      <div class="sheet-scroll">
+      <div class="sheet-scroll" use:scrollFade>
         <div class="sheet-head">
           <h2 id="dlg-title">{list ? 'Modifier la checklist' : 'Nouvelle checklist'}</h2>
           <button type="button" class="icon-btn" aria-label="Fermer (Échap)" onclick={() => onclose()}><Icon name="x" size={18} /></button>

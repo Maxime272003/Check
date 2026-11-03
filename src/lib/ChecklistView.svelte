@@ -1,6 +1,7 @@
 <script>
   import Icon from './Icon.svelte';
   import Items from './Items.svelte';
+  import { scrollFade } from './scrollFade.js';
   import { store, commitList, uncheckAll, togglePin, streakInfo, BGS } from './state.svelte.js';
   import { nextReset, scheduleLabel, fmtIn } from './schedule.js';
 
@@ -24,6 +25,7 @@
 </script>
 
 <div class="list-pane bg bg-{list.bg}" style="--c: {list.color}">
+  <div class="list-scroll" use:scrollFade>
   <div class="list-col">
     {#key list.id}
       <div class="fadeup">
@@ -111,4 +113,5 @@
       </button>
     </div>
   </div>
+</div>
 </div>

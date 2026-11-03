@@ -158,6 +158,8 @@ export function trackCompletion(list) {
 
 export function toggleItem(list, it) {
   it.done = !it.done;
+  if (it.done) it.doneAt = Date.now();
+  else delete it.doneAt;
   trackCompletion(list);
   commitList(list);
 }
@@ -176,8 +178,12 @@ export function removeItem(list, it) {
   });
 }
 
-export function moveItem(list, from, to) {
-  if (from === to || to < 0 || to >= list.items.length) return;
+/** Déplace l'élément `fromId` à la place de l'élément `toId` (ordre enregistré). */
+export function moveItemById(list, fromId, toId) {
+  if (fromId === toId) return;
+  const from = list.items.findIndex((x) => x.id === fromId);
+  const to = list.items.findIndex((x) => x.id === toId);
+  if (from < 0 || to < 0) return;
   const [it] = list.items.splice(from, 1);
   list.items.splice(to, 0, it);
 }
@@ -185,7 +191,10 @@ export function moveItem(list, from, to) {
 export function uncheckAll(list) {
   if (!list.items.some((i) => i.done)) return;
   const before = $state.snapshot(list);
-  list.items.forEach((i) => (i.done = false));
+  list.items.forEach((i) => {
+    i.done = false;
+    delete i.doneAt;
+  });
   // Sans minuterie, « Tout décocher » clôt une période (pour les séries).
   if (list.schedule.kind === 'none') {
     const done = before.items.filter((i) => i.done).length;
