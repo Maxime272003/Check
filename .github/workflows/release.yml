@@ -1,0 +1,67 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Tests Rust
+        working-directory: src-tauri
+        run: cargo test --lib
+
+      - name: Version
+        shell: bash
+        run: |
+          VERSION="0.1.${{ github.run_number }}"
+          node scripts/set-version.mjs "$VERSION"
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "TAG=v$VERSION" >> "$GITHUB_ENV"
+            echo "PRERELEASE=false" >> "$GITHUB_ENV"
+            echo "RELEASE_NAME=Check $VERSION" >> "$GITHUB_ENV"
+          else
+            echo "TAG=v$VERSION-dev" >> "$GITHUB_ENV"
+            echo "PRERELEASE=true" >> "$GITHUB_ENV"
+            echo "RELEASE_NAME=Check $VERSION (dev · ${{ github.ref_name }})" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build & publier la release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ env.TAG }}
+          releaseName: ${{ env.RELEASE_NAME }}
+          releaseBody: |
+            Installation : téléchargez `Check_*_x64-setup.exe` ci-dessous et lancez-le (installation pour l'utilisateur courant, sans droits admin).
+            Mise à jour : Paramètres › Mises à jour › Rechercher une mise à jour.
+
+            Commit : ${{ github.sha }}
+          releaseDraft: false
+          prerelease: ${{ env.PRERELEASE }}
